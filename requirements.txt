@@ -1,0 +1,4 @@
+azure-functions
+azure-servicebus
+azure-storage-blob==12.6.0
+requests
