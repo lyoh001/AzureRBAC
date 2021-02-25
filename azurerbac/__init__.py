@@ -123,7 +123,7 @@ def main(mytimer: func.TimerRequest) -> None:
         )
         blob_client.create_append_blob()
         blob_client.append_block(
-            "SubscriptionName,ManagedModel,Department,Application,ProjectCode,ProjectManager,UPN,DisplayName,RoleDefinitionName\n"
+            "SubscriptionName,ManagedModel,Department,Application,ProjectCode,ProjectManager,UPN,DisplayName,RoleDefinitionName,Status\n"
         )
 
     except Exception as e:
