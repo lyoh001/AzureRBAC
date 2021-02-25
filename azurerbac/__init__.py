@@ -7,42 +7,44 @@ from azure.servicebus import ServiceBusClient, ServiceBusMessage
 from azure.storage.blob import BlobServiceClient
 
 
-def get_rest_api_token():
-    try:
-        oauth2_headers = {"Content-Type": "application/x-www-form-urlencoded"}
-        oauth2_body = {
-            "client_id": os.environ["REST_CLIENT_ID"],
-            "client_secret": os.environ["REST_CLIENT_SECRET"],
-            "grant_type": "client_credentials",
-            "resource": "https://management.azure.com",
-        }
-        oauth2_url = (
-            f"https://login.microsoftonline.com/{os.environ['TENANT_ID']}/oauth2/token"
-        )
-        return requests.post(
-            url=oauth2_url, headers=oauth2_headers, data=oauth2_body
-        ).json()["access_token"]
-
-    except Exception as e:
-        logging.info(str(e))
-
-
 def get_graph_api_token():
+    oauth2_headers = {"Content-Type": "application/x-www-form-urlencoded"}
+    oauth2_body = {
+        "client_id": os.environ["GRAPH_CLIENT_ID"],
+        "client_secret": os.environ["GRAPH_CLIENT_SECRET"],
+        "grant_type": "client_credentials",
+        "scope": "https://graph.microsoft.com/.default",
+    }
+    oauth2_url = (
+        f"https://login.microsoftonline.com/{os.environ['TENANT_ID']}/oauth2/v2.0/token"
+    )
     try:
-        oauth2_headers = {"Content-Type": "application/x-www-form-urlencoded"}
-        oauth2_body = {
-            "client_id": os.environ["GRAPH_CLIENT_ID"],
-            "client_secret": os.environ["GRAPH_CLIENT_SECRET"],
-            "grant_type": "client_credentials",
-            "scope": "https://graph.microsoft.com/.default",
-        }
-        oauth2_url = f"https://login.microsoftonline.com/{os.environ['TENANT_ID']}/oauth2/v2.0/token"
         return requests.post(
             url=oauth2_url, headers=oauth2_headers, data=oauth2_body
         ).json()["access_token"]
 
-    except Exception as e:
-        logging.info(str(e))
+    except requests.exceptions.RequestException as e:
+        raise SystemExit(e)
+
+
+def get_rest_api_token():
+    oauth2_headers = {"Content-Type": "application/x-www-form-urlencoded"}
+    oauth2_body = {
+        "client_id": os.environ["REST_CLIENT_ID"],
+        "client_secret": os.environ["REST_CLIENT_SECRET"],
+        "grant_type": "client_credentials",
+        "resource": "https://management.azure.com",
+    }
+    oauth2_url = (
+        f"https://login.microsoftonline.com/{os.environ['TENANT_ID']}/oauth2/token"
+    )
+    try:
+        return requests.post(
+            url=oauth2_url, headers=oauth2_headers, data=oauth2_body
+        ).json()["access_token"]
+
+    except requests.exceptions.RequestException as e:
+        raise SystemExit(e)
 
 
 def main(mytimer: func.TimerRequest) -> None:
@@ -78,19 +80,22 @@ def main(mytimer: func.TimerRequest) -> None:
                     headers=graph_api_headers,
                 ).status_code
             )
-    except Exception as e:
-        logging.info(str(e))
+    except requests.exceptions.RequestException as e:
+        raise SystemExit(e)
 
     # getting subscriptions
-    subscriptions = [
-        ServiceBusMessage(f"{sub['displayName']},{sub['subscriptionId']}")
-        for sub in requests.get(
-            url="https://management.azure.com/subscriptions?api-version=2020-01-01",
-            headers=rest_api_headers,
-        ).json()["value"]
-        if sub["displayName"]
-        not in ["Access to Azure Active Directory", "BITM", "Free Trial"]
-    ]
+    try:
+        subscriptions = [
+            ServiceBusMessage(f"{sub['displayName']},{sub['subscriptionId']}")
+            for sub in requests.get(
+                url="https://management.azure.com/subscriptions?api-version=2020-01-01",
+                headers=rest_api_headers,
+            ).json()["value"]
+            if sub["displayName"]
+            not in ["Access to Azure Active Directory", "BITM", "Free Trial"]
+        ]
+    except requests.exceptions.RequestException as e:
+        raise SystemExit(e)
     logging.info("----------------------------------------------------------")
     logging.info(f"******* Completed getting subscriptions *******")
 
@@ -117,6 +122,10 @@ def main(mytimer: func.TimerRequest) -> None:
             "rbacreport", "rbac_report.csv"
         )
         blob_client.create_append_blob()
+        blob_client.append_block(
+            "SubscriptionName,ManagedModel,Department,Application,ProjectCode,ProjectManager,UPN,DisplayName,RoleDefinitionName\n"
+        )
+
     except Exception as e:
         logging.info(str(e))
     logging.info("----------------------------------------------------------")
