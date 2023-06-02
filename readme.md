@@ -33,7 +33,6 @@ The logical architecture of the VICGOV - Azure RBAC Report Workflow is as follow
    - Constructs UPNs (User Principal Names) and their assigned roles.
    - Appends the above information to the append blob.
    - Nests UPNs to the security group "AAD Guest RBAC Review."
-   - ![Figure 2.4: Step4](./.images/step4.png)
 
 5. The RBAC report is generated after 60+ function calls complete the process.
    - ![Figure 2.5: Step5](./.images/step5.png)
